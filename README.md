@@ -43,9 +43,24 @@ Scholar-AI/
 └── README.md
 ```
 
+## 🛠️ Easy Setup (Recommended)
+
+To set up the entire project (backend venv, dependencies, and environment) automatically on any machine, run:
+
+```bash
+python setup_local.py
+```
+
+This script will:
+- Create a Python virtual environment.
+- Install all backend dependencies.
+- Install all frontend dependencies (requires Node.js/npm).
+- Generate a default `.env` if one doesn't exist.
+
+---
+
 ## 🚀 Quick Run (Local Development)
 
-If you are in a dev environment with existing virtualenv and node_modules:
 
 1. **Start Backend**:
    ```bash
