@@ -1,5 +1,6 @@
 import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { ApiService, StudyGuide, QuizQuestion } from '../../services/api.service';
@@ -7,7 +8,7 @@ import { ApiService, StudyGuide, QuizQuestion } from '../../services/api.service
 @Component({
     selector: 'app-guide',
     standalone: true,
-    imports: [CommonModule, RouterLink],
+    imports: [CommonModule, RouterLink, FormsModule],
     templateUrl: './guide.component.html',
     styleUrl: './guide.component.scss'
 })

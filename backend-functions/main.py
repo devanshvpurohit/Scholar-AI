@@ -1,3 +1,8 @@
+import os
+
+# macOS gRPC deadlock fix (CRITICAL for local development on Apple Silicon)
+os.environ['OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = 'YES'
+os.environ['GRPC_ENABLE_FORK_SUPPORT'] = '0'
 
 """
 Scholar AI Backend
@@ -18,6 +23,7 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
+from functools import lru_cache
 from google.oauth2 import service_account
 from google.cloud import speech, storage
 import firebase_admin
@@ -46,32 +52,19 @@ logger = logging.getLogger(__name__)
 
 # Initialize Firebase Admin SDK
 logger.info("Starting Firebase Init...")
-try:
-    cred_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', 'service-account-key.json')
-    if not firebase_admin._apps:
-        if os.path.exists(cred_path):
-            cred = credentials.Certificate(cred_path)
-            firebase_admin.initialize_app(cred)
-            logger.info("Initialized Firebase with service account")
-        else:
-            # Check if running in a cloud environment where default creds work
-            try:
-                # Explicitly set project ID for local development with user credentials
-                # firebase_admin.initialize_app(options={'projectId': 'medkey-vault'})
-                # logger.info("Initialized Firebase Admin with project: medkey-vault")
-                logger.warning("Skipping Firebase ADC Init to prevent crash - Use Demo User")
-            except Exception as e:
-                logger.warning(f"Firebase Admin init failed: {e}")
-except Exception as e:
-    logger.error(f"Critical Firebase Init Error: {e}")
+cred_path = os.environ.get('GOOGLE_APPLICATION_CREDENTIALS', 'service-account-key.json')
+if not firebase_admin._apps:
+    if os.path.exists(cred_path):
+        cred = credentials.Certificate(cred_path)
+        firebase_admin.initialize_app(cred)
+        logger.info("Initialized Firebase with service account")
+    else:
+        logger.warning("GOOGLE_APPLICATION_CREDENTIALS not set and service-account-key.json not found. Firebase Admin SDK not initialized.")
 logger.info("Firebase Init Step Complete")
 
 # Robust API Key Rotation System
 GEMINI_KEYS = [
-    "AIzaSyDSj5KqM04bEFLMeb_0p7QGJ0hSGKKP1vY",
-    "AIzaSyBrL21YO9OXZpJ5KX8D8EApuwvcBjEI8XE",
-    "AIzaSyATukiIJYPqwQ9IdirGEzQdzp_iEXq_6rA",
-    "AIzaSyBo6amqWHwFwPq1-SKtaDLWggOxhGB2_Bs"
+    "AIzaSyDSj5KqM04bEFLMeb_0p7QGJ0hSGKKP1vY"
 ]
 
 class APIKeyManager:
@@ -243,7 +236,8 @@ def prompt_everything(prompt, goals="", exam_schedule=None, manual_difficulties=
     while attempts < max_retries:
         try:
             configure_genai()
-            model = genai.GenerativeModel("gemini-1.5-flash-lite")
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            logger.info(f"Attempting generation with key index {key_manager.current_index}. Transcript length: {len(prompt)}")
             
             exam_context = f"The user has upcoming exams: {json.dumps(exam_schedule)}. " if exam_schedule else ""
             difficulty_context = f"Manual topic difficulties (Honor these): {json.dumps(manual_difficulties)}. " if manual_difficulties else ""
@@ -270,6 +264,7 @@ def prompt_everything(prompt, goals="", exam_schedule=None, manual_difficulties=
             )
             
             response = model.generate_content(final_prompt, generation_config={"response_mime_type": "application/json"})
+            logger.info("Successfully generated content from Gemini")
             return json.loads(response.text)
             
         except Exception as e:
@@ -452,6 +447,7 @@ def get_all_guides():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/guide/<guide_id>', methods=['GET'])
+@lru_cache(maxsize=32)
 def get_guide(guide_id):
     try:
         file_path = os.path.join(DB_PATH, f'{guide_id}.json')
@@ -604,7 +600,7 @@ def replan_schedule(guide_id):
         with open(file_path, 'r') as f:
             guide_data = json.load(f)
             
-        model = genai.GenerativeModel("gemini-2.5-flash-lite")
+        model = genai.GenerativeModel("gemini-1.5-flash")
         remaining_tasks = [s for s in guide_data.get('study_schedule', []) if not s.get('completed')]
         
         prompt = (
@@ -640,7 +636,7 @@ def get_motivation():
         completed_count = data.get('completed_count', 0)
         total_count = data.get('total_count', 0)
         
-        model = genai.GenerativeModel("gemini-2.5-flash-lite")
+        model = genai.GenerativeModel("gemini-1.5-flash")
         prompt = (
             f"User has completed {completed_count} out of {total_count} study sessions. "
             "Give them a short, punchy, 1-sentence motivational quote or nudge to keep going. "

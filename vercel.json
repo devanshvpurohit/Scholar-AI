@@ -16,18 +16,15 @@
     "routes": [
         {
             "src": "/api/(.*)",
-            "dest": "/backend-functions/main.py"
+            "dest": "backend-functions/main.py"
+        },
+        {
+            "src": "/assets/(.*)",
+            "dest": "frontend-angular/dist/frontend-angular/browser/assets/$1"
         },
         {
             "src": "/(.*)",
-            "dest": "/frontend-angular/$1"
-        },
-        {
-            "handle": "filesystem"
-        },
-        {
-            "src": "/(.*)",
-            "dest": "/index.html"
+            "dest": "frontend-angular/dist/frontend-angular/browser/index.html"
         }
     ]
 }
